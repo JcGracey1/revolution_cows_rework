@@ -1,9 +1,10 @@
-class Player {
+export default class Player {
     constructor(scene, x, y, texture) {
         this.scene = scene;
         // Use physics.add.sprite to include physics behaviors from the start
         this.sprite = this.scene.physics.add.sprite(x, y, texture).setScale(0.7).setDepth(1);
         this.sprite.setCollideWorldBounds(true); // Ensures player doesn't go off-screen
+        this.sprite.invulnerable = false;
 
         this.health = 3;
         this.lastFired = 0; // Time when the last bullet was fired
@@ -65,29 +66,39 @@ class Player {
         this.lastFired = now;
     }
 
-    onBulletHitPlayer(bullet) {
+    onBulletHit(bullet, player) {
+        if (player.invulnerable) {
+            console.log("skip collision\n");
+            return; // Skip collision if invulnerable
+        }
+    
         bullet.destroy();
-        this.health -= 1;
-
-        // possible refactor here depending on how the scene interface is created
+        console.log("bullet destroyed\n");
+        this.health--;
+    
         if (this.health <= 0) {
             this.scene.scene.start('gameOverScene');
         } else {
-            this.startInvulnerability();
+            console.log("trigger invulnerability\n");
+            this.startInvulnerability(player);
+            this.scene.hud.updateHealth(this.health);
         }
+    
     }
 
-    startInvulnerability() {
-        this.sprite.invulnerable = true;
+    startInvulnerability(player) {
+        console.log("start invulnerability\n");
+        player.invulnerable = true;
         this.scene.tweens.add({
-            targets: this.sprite,
+            targets: player,
             alpha: { from: 0.5, to: 1 },
+            ease: 'Linear', // 'Cubic', 'Elastic', 'Bounce', 'Back'
             duration: 100,
-            repeat: 5,
-            yoyo: true,
+            repeat: 5, // Number of times to blink
+            yoyo: true, // Smooth transition of properties to/from the values
             onComplete: () => {
-                this.sprite.invulnerable = false;
-                this.sprite.alpha = 1;
+                player.invulnerable = false;
+                player.alpha = 1; // Make sure player is fully visible after blinking
             }
         });
     }
@@ -96,5 +107,3 @@ class Player {
         return {x: this.sprite.x, y: this.sprite.y};
     }
 }
-
-export default Player;

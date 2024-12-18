@@ -16,16 +16,18 @@ export default class GameOver extends Phaser.Scene {
 
         this.add.text(400, 300, 'GAME OVER', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
 
-        // Handle Score Display and Restart Logic
         const finalScore = this.scene.get("mainGameScene")?.myScore || 0;
+        console.log(finalScore);
+        console.log('\n');
         this.add.text(400, 200, 'Score: ' + finalScore, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+        console.log(finalScore);
 
         const playAgain = this.add.text(400, 400, 'Play Again', { fontSize: '32px', fill: '#0f0' })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
 
         playAgain.on('pointerdown', () => {
-            this.scene.stop();
+            this.scene.stop('gameOverScene');
             this.scene.get("mainGameScene").resetGame();
         });
 

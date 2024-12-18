@@ -5,8 +5,20 @@ import HUD from './HUD.js';
 export default class MainGameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'mainGameScene' });
+        this.myScore = 0;
         this.difficulty = 1;
         this.activeEnemies = 0;
+    }
+
+    resetGame() {
+        this.scene.restart(); // Restart the scene
+        this.myScore = 0;
+        this.difficulty = 1;
+        this.activeEnemies = 0;
+        
+        this.player.health = 3; 
+        this.hud.updateScore(this.myScore);
+        this.hud.updateHealth(this.player.health);
     }
 
     preload() {
@@ -44,7 +56,9 @@ export default class MainGameScene extends Phaser.Scene {
 
     initializeGroups() {
         this.enemies = this.physics.add.group();
-        this.enemyBullets = this.physics.add.group();
+        this.enemyBullets = this.physics.add.group({
+            defaultKey: 'enemyFire'
+        });
         this.playerBullets = this.physics.add.group({
             defaultKey: 'bullet'
         });
@@ -78,19 +92,56 @@ export default class MainGameScene extends Phaser.Scene {
 
     updateScore(points) {
         this.myScore = (this.myScore || 0) + points; // Initialize score if undefined, then add points
-        this.hud.updateScore(this.myScore); // Assuming your HUD has a function to update the displayed score
+        this.hud.updateScore(this.myScore);
     }
 
     checkCollisions() {
-        this.physics.world.overlap(this.playerBullets, this.enemies, (bullet, sprite) => {
-            const enemy = sprite.getData('instance');
+        // Collision between player bullets and enemies
+        this.physics.world.overlap(this.playerBullets, this.enemies, (bullet, enemySprite) => {
+            const enemy = enemySprite.getData('instance');
             if (enemy) {
+                this.activeEnemies--;
                 enemy.onDestroy();
-                sprite.destroy();
-                //bullet.setActive(false).setVisible(false);
+                enemySprite.destroy();
+                this.updateScore(enemy.sprite.scorePoints);
                 bullet.destroy();
+                
+                // Check if we've destroyed all enemies in the wave
+                if (this.activeEnemies === 0) {
+                    this.time.delayedCall(1000, () => this.spawnNextWave(), [], this);
+                }
             }
         });
+    
+        // Collision between enemy bullets and player
+        this.physics.world.overlap(this.player.sprite, this.enemyBullets, (playerSprite, enemyBullet) => {
+            this.player.onBulletHit(enemyBullet, playerSprite);
+        });
+    }
+
+
+    // Increases the difficulty each wave
+    spawnNextWave() {
+        const numberOfEnemies = Phaser.Math.Between(3, 5) * this.difficulty;
+        const x = Phaser.Math.Between(0, this.sys.game.config.width);
+        const y = Phaser.Math.Between(50, 150);
+        const sharedOffset = Phaser.Math.Between(1, 1000);
+        for (let i = 0; i < numberOfEnemies; i++) {
+            this.time.addEvent({
+                delay: 1000 * i, 
+                callback: () => {
+                    this.spawnEnemy(x, y, sharedOffset + i*1000);
+                }});
+        }
+        this.difficulty += 0.1;
+    }
+
+    spawnEnemy(x, y, offset) {
+        const enemy = new Enemy(this, x, y, 'enemy1', offset); 
+        console.log(`Spawning wave at x: ${x}, y: ${y}`);
+
+        this.enemies.add(enemy.sprite);
+        this.activeEnemies++;
     }
 
     createExplosion(x, y) {
@@ -108,27 +159,4 @@ export default class MainGameScene extends Phaser.Scene {
         });
     }
 
-    spawnNextWave() {
-        const numberOfEnemies = Phaser.Math.Between(3, 5) * this.difficulty;
-        for (let i = 0; i < numberOfEnemies; i++) {
-            const x = Phaser.Math.Between(0, this.sys.game.config.width);
-            const y = Phaser.Math.Between(50, 150);
-            this.spawnEnemy(x, y);
-        }
-        this.difficulty += 0.1;
-    }
-
-    spawnEnemy(x, y) {
-        const enemy = new Enemy(this, x, y, 'enemy1');
-        this.enemies.add(enemy.sprite);
-        this.activeEnemies++;
-    }
-
-    onBulletHitPlayer(bullet, player) {
-        bullet.destroy();
-        this.hud.updateHealth(--this.player.health);
-        if (this.player.health <= 0) {
-            this.scene.start('gameOverScene');
-        }
-    }
 }

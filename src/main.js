@@ -18,7 +18,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 0 }, // No gravity in any direction
-            debug: true // Change to true for debugging physics
+            debug: false
         }
     },
     scene: [StartScreen, MainGameScene, GameOver, GameWon], // Includes all scenes
